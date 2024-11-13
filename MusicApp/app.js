@@ -8,10 +8,6 @@ var indexRouter = require('./routes/index');
 var apiRouter = require('./routes/api');
 const database = require('./config/db');
 var app = express();
-const port = process.env.PORT || 4000;
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server is running on http://0.0.0.0:${port}`);
-});
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'hbs');
