@@ -24,13 +24,13 @@ router.post('/add-playlist', async (req, res) => {
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -47,13 +47,13 @@ router.delete('/delele-playlist-by-id/:id', async (req, res) => {
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Xoá thành công",
+                "message": "Xoá thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, xoá ko thành công",
+                "message": "Lỗi, xoá ko thành công",
                 "data": []
             })
         }
@@ -71,13 +71,13 @@ router.get('/get-list-playlist', async (req, res) => {
         if (data) {
             res.json({
                 "status": 200,
-                "messenger": "Thành công",
+                "message": "Thành công",
                 "data": data
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, không thành công",
+                "message": "Lỗi, không thành công",
                 "data": []
             })
         }
@@ -117,6 +117,62 @@ router.get('/get-list-playlist/:id_user', async (req, res) => {
     }
 });
 
+//-----Get playlist by user id
+router.get('/get-playlist/:id_user', async (req, res) => {
+    try {
+        const { id_user } = req.params;
+        const playlists = await Playlists.find({ id_user }).select('_id name');
+        if (playlists.length > 0) {
+            res.json({
+                "status": 200,
+                "message": "Success",
+                "data": playlists
+            });
+        } else {
+            res.status(400).json({
+                "status": 400,
+                "message": "Failed",
+                "data": []
+            });
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            "status": 500,
+            "message": "Server Error",
+            "error": error.message
+        });
+    }
+});
+
+//-----Get list playlist item by id_playlist
+router.get('/get-list-playlist-item/:id_playlist', async (req, res) => {
+    try {
+        const { id_playlist } = req.params;
+        const playlistItems = await PlaylistItems.find({ id_playlist });
+        if (playlistItems.length > 0) {
+            res.json({
+                "status": 200,
+                "message": "Success",
+                "data": playlistItems
+            });
+        } else {
+            res.status(400).json({
+                "status": 400,
+                "message": "Failed",
+                "data": []
+            });
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            "status": 500,
+            "message": "Server Error",
+            "error": error.message
+        });
+    }
+});
+
 //-----Add playlist item
 router.post('/add-playlist-item', async (req, res) => {
     try {
@@ -127,21 +183,20 @@ router.post('/add-playlist-item', async (req, res) => {
             name: data.name,
             image_url: data.image_url,
             preViewUrl: data.preViewUrl,
-        });// Tạo một đối tượng mới
+            artist: data.artist,
+        });
         const result = await newPlaylistItem.save(); 
         await Playlists.findByIdAndUpdate(data.id_playlist, { $push: { playlistItems: result._id } });
         if (result) {
-            // Nếu thêm thành công result !null trả về dữ liệu
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {
-            // Nếu ko thành công, hiện thông báo
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -158,13 +213,13 @@ router.delete('/delele-playlist-item-by-id/:id', async (req, res) => {
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Xoá thành công",
+                "message": "Xoá thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, xoá ko thành công",
+                "message": "Lỗi, xoá ko thành công",
                 "data": []
             })
         }
@@ -184,14 +239,14 @@ router.post('/add-history', async (req, res) => {
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {
             // Nếu ko thành công, hiện thông báo
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -210,6 +265,7 @@ router.post('/add-history-item', async (req, res) => {
             name: data.name,
             image_url: data.image_url,
             preViewUrl: data.preViewUrl,
+            artist: data.artist,
         });// Tạo một đối tượng mới
         const result = await newHistoryItem.save();
         await Histories.findByIdAndUpdate(data.id_history, { $push: { historyItems: result._id } });
@@ -217,14 +273,14 @@ router.post('/add-history-item', async (req, res) => {
             // Nếu thêm thành công result !null trả về dữ liệu
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {
             // Nếu ko thành công, hiện thông báo
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -296,13 +352,13 @@ router.delete('/delele-history-item-by-id/:id', async (req, res) => {
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Xoá thành công",
+                "message": "Xoá thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, xoá ko thành công",
+                "message": "Lỗi, xoá ko thành công",
                 "data": []
             })
         }
@@ -334,13 +390,13 @@ router.post('/register', async (req, res) => {
             await Transporter.sendMail(mailOptions); // gửi mail
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {// Nếu thêm không thành công result null, thông báo không thành công
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -364,7 +420,7 @@ router.post('/login', async (req, res) => {
             //expiresIn thời gian token
             res.json({
                 "status": 200,
-                "messenger": "Đăng nhập thành công",
+                "message": "Đăng nhập thành công",
                 "data": user,
                 "token": token,
                 "refreshToken": refreshToken
@@ -373,7 +429,7 @@ router.post('/login', async (req, res) => {
             // Nếu thêm không thành công result null, thông báo không thành công
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, đăng nhập không thành công",
+                "message": "Lỗi, đăng nhập không thành công",
                 "data": []
             })
         }
@@ -393,14 +449,14 @@ router.post('/add-favorite', async (req, res) => {
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {
             // Nếu ko thành công, hiện thông báo
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -419,19 +475,20 @@ router.post('/add-favorite-item', async(req, res)=>{
             name: data.name,
             image_url: data.image_url,
             preViewUrl: data.preViewUrl,
+            artist: data.artist,
         });
         const result = await newFavoriteItem.save();
         await Favorites.findByIdAndUpdate(data.id_favorite, { $push: { favoriteItems: result._id } });
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -448,13 +505,13 @@ router.delete('/delele-favorite-item-by-id/:id', async (req, res) => {
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Xoá thành công",
+                "message": "Xoá thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, xoá ko thành công",
+                "message": "Lỗi, xoá ko thành công",
                 "data": []
             })
         }
@@ -505,13 +562,13 @@ router.post('/add-comment', async(req, res)=>{
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Thêm thành công",
+                "message": "Thêm thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, thêm không thành công",
+                "message": "Lỗi, thêm không thành công",
                 "data": []
             })
         }
@@ -554,13 +611,13 @@ router.delete('/delete-comment/:id', async(req, res)=>{
         if (result) {
             res.json({
                 "status": 200,
-                "messenger": "Xoá thành công",
+                "message": "Xoá thành công",
                 "data": result
             })
         } else {
             res.json({
                 "status": 400,
-                "messenger": "Lỗi, xoá ko thành công",
+                "message": "Lỗi, xoá ko thành công",
                 "data": []
             })
         }
