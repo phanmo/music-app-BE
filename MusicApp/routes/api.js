@@ -430,7 +430,7 @@ router.post('/login', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, đăng nhập không thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -626,4 +626,13 @@ router.delete('/delete-comment/:id', async(req, res)=>{
     }
 })
 
+router.put('/encrease-point' , async(req, res)=>{
+    try {
+        const result = await Users.findByIdAndUpdate()
+    } catch (error) {
+        
+    }
+})
+router.put('/decrease-point' , async(req, res)=>{
+})
 module.exports = router;
