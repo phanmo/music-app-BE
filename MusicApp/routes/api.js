@@ -17,25 +17,50 @@ const Comments = require('../models/comments');
 router.post('/add-playlist', async (req, res) => {
     try {
         const { id_user, name } = req.body; // Lấy dữ liệu từ body
-        const newPlaylist = new Playlists({
-            id_user: id_user, name
-        });
-        const result = await newPlaylist.save();
-        if (result) {
-            res.json({
-                "status": 200,
-                "message": "Thêm thành công",
-                "data": result
-            })
+
+        // Tìm user theo id_user
+        const user = await Users.findById(id_user);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "Người dùng không tồn tại",
+                data: {}
+            });
+        }
+
+        // Kiểm tra số coin
+        if (user.coin >= 5) {
+            // Trừ 5 coin và lưu thông tin user
+            user.coin -= 5;
+            await user.save();
+
+            // Tạo playlist mới
+            const newPlaylist = new Playlists({
+                id_user: id_user,
+                name
+            });
+
+            const result = await newPlaylist.save();
+            return res.json({
+                status: 200,
+                message: "Thêm thành công",
+                data: result
+            });
         } else {
-            res.json({
-                "status": 400,
-                "message": "Lỗi, thêm không thành công",
-                "data": []
-            })
+            // Coin không đủ
+            return res.status(400).json({
+                status: 400,
+                message: "Coin không đủ để tạo playlist",
+                data: {}
+            });
         }
     } catch (error) {
-        console.log(error);
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
     }
 });
 
@@ -54,7 +79,7 @@ router.delete('/delele-playlist-by-id/:id', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, xoá ko thành công",
-                "data": []
+                "data":{}
             })
         }
     } catch (error) {
@@ -177,33 +202,84 @@ router.get('/get-list-playlist-item/:id_playlist', async (req, res) => {
 router.post('/add-playlist-item', async (req, res) => {
     try {
         const data = req.body;
-        const newPlaylistItem = new PlaylistItems({
+
+        // Lấy thông tin playlist để tìm id_user
+        const playlist = await Playlists.findById(data.id_playlist).populate('id_user');
+        if (!playlist) {
+            return res.status(404).json({
+                status: 404,
+                message: "Playlist không tồn tại",
+                data: {}
+            });
+        }
+
+        // Lấy thông tin user từ playlist
+        const user = await Users.findById(playlist.id_user);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "Người dùng không tồn tại",
+                data: {}
+            });
+        }
+
+        // Kiểm tra xem id_track đã tồn tại trong playlist chưa
+        const isTrackExist = await PlaylistItems.findOne({
             id_playlist: data.id_playlist,
-            id_track: data.id_track,
-            name: data.name,
-            image_url: data.image_url,
-            preViewUrl: data.preViewUrl,
-            artist: data.artist,
+            id_track: data.id_track
         });
-        const result = await newPlaylistItem.save(); 
-        await Playlists.findByIdAndUpdate(data.id_playlist, { $push: { playlistItems: result._id } });
-        if (result) {
-            res.json({
-                "status": 200,
-                "message": "Thêm thành công",
-                "data": result
-            })
+
+        if (isTrackExist) {
+            return res.status(400).json({
+                status: 400,
+                message: "Bài hát đã tồn tại trong playlist",
+                data: {}
+            });
+        }
+
+        // Kiểm tra số coin của user
+        if (user.coin >= 2) {
+            // Trừ 2 coin và lưu lại user
+            user.coin -= 2;
+            await user.save();
+
+            // Tạo PlaylistItem mới
+            const newPlaylistItem = new PlaylistItems({
+                id_playlist: data.id_playlist,
+                id_track: data.id_track,
+                name: data.name,
+                image_url: data.image_url,
+                preViewUrl: data.preViewUrl,
+                artist: data.artist,
+            });
+            const result = await newPlaylistItem.save();
+
+            // Cập nhật playlist với playlistItem mới
+            await Playlists.findByIdAndUpdate(data.id_playlist, { $push: { playlistItems: result._id } });
+
+            return res.json({
+                status: 200,
+                message: "Thêm thành công",
+                data: result
+            });
         } else {
-            res.json({
-                "status": 400,
-                "message": "Lỗi, thêm không thành công",
-                "data": []
-            })
+            // Coin không đủ
+            return res.status(400).json({
+                status: 400,
+                message: "Coin không đủ để thêm bài hát vào playlist",
+                data: {}
+            });
         }
     } catch (error) {
-        console.log(error);
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
     }
 });
+
 
 //-----Delete playlist by id
 router.delete('/delele-playlist-item-by-id/:id', async (req, res) => {
@@ -220,7 +296,7 @@ router.delete('/delele-playlist-item-by-id/:id', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, xoá ko thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -247,7 +323,7 @@ router.post('/add-history', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, thêm không thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -281,7 +357,7 @@ router.post('/add-history-item', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, thêm không thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -359,7 +435,7 @@ router.delete('/delele-history-item-by-id/:id', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, xoá ko thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -377,6 +453,7 @@ router.post('/register', async (req, res) => {
             email: data.email,
             name: data.name,
             avatar: data.avatar,
+            coin: data.coin,
         })
         const result = await newUser.save()
         if (result) { //Gửi mail
@@ -397,7 +474,7 @@ router.post('/register', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, thêm không thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -457,7 +534,7 @@ router.post('/add-favorite', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, thêm không thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -489,7 +566,7 @@ router.post('/add-favorite-item', async(req, res)=>{
             res.json({
                 "status": 400,
                 "message": "Lỗi, thêm không thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -512,7 +589,7 @@ router.delete('/delele-favorite-item-by-id/:id', async (req, res) => {
             res.json({
                 "status": 400,
                 "message": "Lỗi, xoá ko thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -550,32 +627,56 @@ router.get('/get-favorite/:id_user', async(req, res)=>{
     }
 })
 
-router.post('/add-comment', async(req, res)=>{
+router.post('/add-comment', async (req, res) => {
     try {
         const data = req.body;
-        const newComment = new Comments({
-            id_user: data.id_user,
-            id_track: data.id_track,
-            content: data.content
-        });
-        const result = await newComment.save();
-        if (result) {
-            res.json({
-                "status": 200,
-                "message": "Thêm thành công",
-                "data": result
-            })
+
+        // Tìm thông tin user
+        const user = await Users.findById(data.id_user);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "Người dùng không tồn tại",
+                data: {}
+            });
+        }
+
+        // Kiểm tra số coin của user
+        if (user.coin >= 3) {
+            // Trừ 3 coin và lưu lại user
+            user.coin -= 3;
+            await user.save();
+
+            // Tạo comment mới
+            const newComment = new Comments({
+                id_user: data.id_user,
+                id_track: data.id_track,
+                content: data.content
+            });
+            const result = await newComment.save();
+
+            return res.json({
+                status: 200,
+                message: "Thêm thành công",
+                data: result
+            });
         } else {
-            res.json({
-                "status": 400,
-                "message": "Lỗi, thêm không thành công",
-                "data": []
-            })
+            // Coin không đủ
+            return res.status(400).json({
+                status: 400,
+                message: "Coin không đủ để thêm comment",
+                data: {}
+            });
         }
     } catch (error) {
-        console.log(error);
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
     }
-})
+});
 
 router.get('/get-comment-by-track-id/:id_track', async(req, res)=>{
     try {
@@ -618,7 +719,7 @@ router.delete('/delete-comment/:id', async(req, res)=>{
             res.json({
                 "status": 400,
                 "message": "Lỗi, xoá ko thành công",
-                "data": []
+                "data": {}
             })
         }
     } catch (error) {
@@ -626,13 +727,70 @@ router.delete('/delete-comment/:id', async(req, res)=>{
     }
 })
 
-router.put('/encrease-point' , async(req, res)=>{
+router.post('/add-coin', async (req, res) => {
     try {
-        const result = await Users.findByIdAndUpdate()
+        const { id_user } = req.body;
+
+        // Tìm người dùng theo ID
+        const user = await Users.findById(id_user);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "Người dùng không tồn tại",
+                data: null
+            });
+        }
+
+        // Cộng thêm 2 coin
+        user.coin += 2;
+        await user.save();
+
+        // Phản hồi thành công
+        res.json({
+            status: 200,
+            message: "Đã cộng 2 coin thành công",
+            data: user.coin
+        });
     } catch (error) {
-        
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
     }
-})
-router.put('/decrease-point' , async(req, res)=>{
-})
+});
+
+router.get('/get-coin/:user_id', async (req, res) => {
+    try {
+        const { user_id } = req.params;
+
+        // Tìm người dùng theo ID
+        const user = await Users.findById(user_id);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "Người dùng không tồn tại",
+                data: null
+            });
+        }
+
+        // Phản hồi chỉ với số coin
+        res.json({
+            status: 200,
+            message: "Lấy thông tin coin thành công",
+            data: user.coin
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
+    }
+});
+
+
+
 module.exports = router;
