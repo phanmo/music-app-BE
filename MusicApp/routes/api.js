@@ -41,10 +41,21 @@ router.post('/add-playlist', async (req, res) => {
             });
 
             const result = await newPlaylist.save();
+
+            // Lấy danh sách các playlist của người dùng sau khi thêm playlist mới
+            const playlists = await Playlists.find({ id_user }).populate('playlistItems');
+
+            // Trả về danh sách playlist với count playlistItems
+            const response = playlists.map(playlist => ({
+                _id: playlist._id,
+                name: playlist.name,
+                count: playlist.playlistItems.length // Số lượng playlistItems trong mỗi playlist
+            }));
+
             return res.json({
                 status: 200,
-                message: "Thêm thành công",
-                data: result
+                message: "Thêm playlist thành công",
+                data: response // Trả về danh sách playlist đã được tính số lượng playlistItems
             });
         } else {
             // Coin không đủ
@@ -65,34 +76,61 @@ router.post('/add-playlist', async (req, res) => {
 });
 
 //-----Delete playlist by id
-router.delete('/delele-playlist-by-id/:id', async (req, res) => {
+router.delete('/delete-playlist/:id', async (req, res) => {
     try {
         const { id } = req.params;
+
+        // Tìm playlist theo ID để lấy thông tin id_user trước khi xóa
+        const playlist = await Playlists.findById(id);
+
+        if (!playlist) {
+            return res.json({
+                status: 404,
+                message: "Playlist không tồn tại",
+                data: []
+            });
+        }
+
+        const id_user = playlist.id_user;
+
+        // Xóa các playlistItems liên quan đến playlist này trước
+        await PlaylistItems.deleteMany({ id_playlist: id });
+
+        // Xóa playlist
         const result = await Playlists.findByIdAndDelete(id);
+
         if (result) {
-            res.json({
-                "status": 200,
-                "message": "Xoá thành công",
-                "data": result
-            })
+            // Lấy danh sách các playlist còn lại của user
+            const userPlaylists = await Playlists.find({ id_user });
+
+            return res.json({
+                status: 200,
+                message: "Xóa thành công",
+                data: userPlaylists
+            });
         } else {
-            res.json({
-                "status": 400,
-                "message": "Lỗi, xoá ko thành công",
-                "data":{}
-            })
+            return res.json({
+                status: 400,
+                message: "Lỗi, không thể xóa playlist",
+                data: []
+            });
         }
     } catch (error) {
-        console.log(error);
+        console.error("Error deleting playlist:", error);
+        return res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
     }
-})
+});
 
 //-----Get list playlist
 router.get('/get-list-playlist', async (req, res) => {
     try {
         const data = await Playlists.find()
-        .populate('playlistItems')
-        .sort({ createAt: -1 });
+            .populate('playlistItems')
+            .sort({ createAt: -1 });
         if (data) {
             res.json({
                 "status": 200,
@@ -111,64 +149,75 @@ router.get('/get-list-playlist', async (req, res) => {
     }
 });
 //-----Get list playlist by user id
-router.get('/get-list-playlist/:id_user', async (req, res) => {
-    try {
-        const { id_user } = req.params;
-        console.log('Requested id_user:', id_user);
+// router.get('/get-list-playlist/:id_user', async (req, res) => {
+//     try {
+//         const { id_user } = req.params;
+//         console.log('Requested id_user:', id_user);
 
-        const playlists = await Playlists.find({ id_user }).populate('playlistItems');
-        console.log('Playlists found:', playlists);
-        
-        if (playlists.length > 0) {
-            res.json({
-                "status": 200,
-                "message": "Success",
-                "data": playlists
-            });
-        } else {
-            res.status(400).json({
-                "status": 400,
-                "message": "Failed",
-                "data": []
-            });
-        }
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({
-            "status": 500,
-            "message": "Server Error",
-            "error": error.message
-        });
-    }
-});
+//         const playlists = await Playlists.find({ id_user }).populate('playlistItems');
+//         console.log('Playlists found:', playlists);
+
+//         if (playlists.length > 0) {
+//             res.json({
+//                 "status": 200,
+//                 "message": "Success",
+//                 "data": playlists
+//             });
+//         } else {
+//             res.status(400).json({
+//                 "status": 400,
+//                 "message": "Failed",
+//                 "data": []
+//             });
+//         }
+//     } catch (error) {
+//         console.log(error);
+//         res.status(500).json({
+//             "status": 500,
+//             "message": "Server Error",
+//             "error": error.message
+//         });
+//     }
+// })
 
 //-----Get playlist by user id
 router.get('/get-playlist/:id_user', async (req, res) => {
     try {
         const { id_user } = req.params;
-        const playlists = await Playlists.find({ id_user }).select('_id name');
+
+        // Truy vấn playlist
+        const playlists = await Playlists.find({ id_user }).select('_id name playlistItems');
+
         if (playlists.length > 0) {
+            // Thêm count thủ công vào kết quả
+            const result = playlists.map(playlist => ({
+                _id: playlist._id,
+                name: playlist.name,
+                count: playlist.playlistItems.length
+            }));
+
             res.json({
-                "status": 200,
-                "message": "Success",
-                "data": playlists
+                status: 200,
+                message: "Success",
+                data: result
             });
         } else {
             res.status(400).json({
-                "status": 400,
-                "message": "Failed",
-                "data": []
+                status: 400,
+                message: "Failed",
+                data: []
             });
         }
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).json({
-            "status": 500,
-            "message": "Server Error",
-            "error": error.message
+            status: 500,
+            message: "Server Error",
+            error: error.message
         });
     }
 });
+
 
 //-----Get list playlist item by id_playlist
 router.get('/get-list-playlist-item/:id_playlist', async (req, res) => {
@@ -209,7 +258,7 @@ router.post('/add-playlist-item', async (req, res) => {
             return res.status(404).json({
                 status: 404,
                 message: "Playlist không tồn tại",
-                data: {}
+                data: []
             });
         }
 
@@ -219,7 +268,7 @@ router.post('/add-playlist-item', async (req, res) => {
             return res.status(404).json({
                 status: 404,
                 message: "Người dùng không tồn tại",
-                data: {}
+                data: []
             });
         }
 
@@ -233,7 +282,7 @@ router.post('/add-playlist-item', async (req, res) => {
             return res.status(400).json({
                 status: 400,
                 message: "Bài hát đã tồn tại trong playlist",
-                data: {}
+                data: []
             });
         }
 
@@ -252,22 +301,25 @@ router.post('/add-playlist-item', async (req, res) => {
                 preViewUrl: data.preViewUrl,
                 artist: data.artist,
             });
-            const result = await newPlaylistItem.save();
+            await newPlaylistItem.save();
 
             // Cập nhật playlist với playlistItem mới
-            await Playlists.findByIdAndUpdate(data.id_playlist, { $push: { playlistItems: result._id } });
+            await Playlists.findByIdAndUpdate(data.id_playlist, { $push: { playlistItems: newPlaylistItem._id } });
+
+            // Lấy danh sách PlaylistItems của id_playlist
+            const playlistItems = await PlaylistItems.find({ id_playlist: data.id_playlist });
 
             return res.json({
                 status: 200,
                 message: "Thêm thành công",
-                data: result
+                data: playlistItems
             });
         } else {
             // Coin không đủ
             return res.status(400).json({
                 status: 400,
                 message: "Coin không đủ để thêm bài hát vào playlist",
-                data: {}
+                data: []
             });
         }
     } catch (error) {
@@ -281,37 +333,65 @@ router.post('/add-playlist-item', async (req, res) => {
 });
 
 
-//-----Delete playlist by id
-router.delete('/delele-playlist-item-by-id/:id', async (req, res) => {
+//-----Delete playlist item by id
+router.delete('/delete-playlist-item/:id', async (req, res) => {
     try {
         const { id } = req.params;
+
+        // Lấy thông tin PlaylistItem trước khi xoá
+        const playlistItem = await PlaylistItems.findById(id);
+        if (!playlistItem) {
+            return res.json({
+                status: 400,
+                message: "Item không tồn tại",
+                data: []
+            });
+        }
+
+        // Xoá PlaylistItem
         const result = await PlaylistItems.findByIdAndDelete(id);
         if (result) {
-            res.json({
-                "status": 200,
-                "message": "Xoá thành công",
-                "data": result
-            })
+            // Cập nhật mảng playlistItems trong Playlists
+            await Playlists.updateOne(
+                { _id: playlistItem.id_playlist },
+                { $pull: { playlistItems: id } }
+            );
+
+            // Lấy danh sách các item còn lại trong cùng playlist
+            const remainingItems = await PlaylistItems.find({
+                id_playlist: playlistItem.id_playlist
+            });
+
+            return res.json({
+                status: 200,
+                message: "Xoá thành công",
+                data: remainingItems
+            });
         } else {
-            res.json({
-                "status": 400,
-                "message": "Lỗi, xoá ko thành công",
-                "data": {}
-            })
+            return res.json({
+                status: 400,
+                message: "Lỗi, xoá không thành công",
+                data: []
+            });
         }
     } catch (error) {
         console.log(error);
+        return res.status(500).json({
+            status: 500,
+            message: "Lỗi hệ thống",
+            error: error.message
+        });
     }
-})
+});
 
 //-----Add history
 router.post('/add-history', async (req, res) => {
     try {
-        const data = req.body; 
+        const data = req.body;
         const newHistory = new Histories({
             id_user: data.id_user,
         });
-        const result = await newHistory.save(); 
+        const result = await newHistory.save();
         if (result) {
             res.json({
                 "status": 200,
@@ -366,14 +446,14 @@ router.post('/add-history-item', async (req, res) => {
 })
 
 //-----Get history by user id
-router.get('/get-history/:id_user', async(req, res)=>{
+router.get('/get-history/:id_user', async (req, res) => {
     try {
         const { id_user } = req.params;
         console.log('Requested id_user:', id_user);
 
         const history = await Histories.findOne({ id_user }).populate('historyItems');
         console.log('history found:', history);
-        
+
         if (history != null) {
             res.json({
                 "status": 200,
@@ -518,11 +598,11 @@ router.post('/login', async (req, res) => {
 //-----Add favorite
 router.post('/add-favorite', async (req, res) => {
     try {
-        const data = req.body; 
+        const data = req.body;
         const newFavorite = new Favorites({
             id_user: data.id_user,
         });
-        const result = await newFavorite.save(); 
+        const result = await newFavorite.save();
         if (result) {
             res.json({
                 "status": 200,
@@ -543,7 +623,7 @@ router.post('/add-favorite', async (req, res) => {
 });
 
 //----- Add favorite item
-router.post('/add-favorite-item', async(req, res)=>{
+router.post('/add-favorite-item', async (req, res) => {
     try {
         const data = req.body;
         const newFavoriteItem = new FavoriteItems({
@@ -598,12 +678,12 @@ router.delete('/delele-favorite-item-by-id/:id', async (req, res) => {
 })
 
 //-----Get favorite by user id
-router.get('/get-favorite/:id_user', async(req, res)=>{
+router.get('/get-favorite/:id_user', async (req, res) => {
     try {
         const { id_user } = req.params;
 
         const favorite = await Favorites.findOne({ id_user }).populate('favoriteItems');
-        
+
         if (favorite) {
             res.json({
                 "status": 200,
@@ -678,10 +758,10 @@ router.post('/add-comment', async (req, res) => {
     }
 });
 
-router.get('/get-comment-by-track-id/:id_track', async(req, res)=>{
+router.get('/get-comment-by-track-id/:id_track', async (req, res) => {
     try {
         const { id_track } = req.params;
-        const comments = await Comments.find({ id_track });   
+        const comments = await Comments.find({ id_track });
         if (comments.length > 0) {
             res.json({
                 "status": 200,
@@ -705,7 +785,7 @@ router.get('/get-comment-by-track-id/:id_track', async(req, res)=>{
     }
 })
 
-router.delete('/delete-comment/:id', async(req, res)=>{
+router.delete('/delete-comment/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const result = await Comments.findByIdAndDelete(id);
