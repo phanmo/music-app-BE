@@ -24,7 +24,7 @@ router.post('/add-playlist', async (req, res) => {
             return res.status(404).json({
                 status: 404,
                 message: "Người dùng không tồn tại",
-                data: {}
+                data: []
             });
         }
 
@@ -62,7 +62,7 @@ router.post('/add-playlist', async (req, res) => {
             return res.status(400).json({
                 status: 400,
                 message: "Coin không đủ để tạo playlist",
-                data: {}
+                data: []
             });
         }
     } catch (error) {
