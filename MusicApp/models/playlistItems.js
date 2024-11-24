@@ -7,7 +7,8 @@ const PlaylistItems = new Scheme({
     name:{type: String},
     image_url:{type: String},
     preViewUrl:{type: String},
-    artist: {type: String}
+    artist: {type: String},
+    album: {type: String}
 },{
     timestamps: true
 })

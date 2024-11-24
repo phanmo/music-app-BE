@@ -12,6 +12,7 @@ const HistoryItems = require('../models/historyItems');
 const Favorites = require('../models/favorites');
 const FavoriteItems = require('../models/favoriteItems');
 const Comments = require('../models/comments');
+const Upload = require('../config/upload');
 
 //-----Add playlist
 router.post('/add-playlist', async (req, res) => {
@@ -101,12 +102,17 @@ router.delete('/delete-playlist/:id', async (req, res) => {
 
         if (result) {
             // Lấy danh sách các playlist còn lại của user
-            const userPlaylists = await Playlists.find({ id_user });
+            const playlists = await Playlists.find({ id_user });
+            const response = playlists.map(playlist => ({
+                _id: playlist._id,
+                name: playlist.name,
+                count: playlist.playlistItems.length // Số lượng playlistItems trong mỗi playlist
+            }));
 
             return res.json({
                 status: 200,
                 message: "Xóa thành công",
-                data: userPlaylists
+                data: response
             });
         } else {
             return res.json({
@@ -223,26 +229,34 @@ router.get('/get-playlist/:id_user', async (req, res) => {
 router.get('/get-list-playlist-item/:id_playlist', async (req, res) => {
     try {
         const { id_playlist } = req.params;
-        const playlistItems = await PlaylistItems.find({ id_playlist });
-        if (playlistItems.length > 0) {
-            res.json({
-                "status": 200,
-                "message": "Success",
-                "data": playlistItems
-            });
-        } else {
-            res.status(400).json({
-                "status": 400,
-                "message": "Failed",
-                "data": []
+
+        // Lấy thông tin playlist
+        const playlist = await Playlists.findById(id_playlist);
+
+        if (!playlist) {
+            return res.status(404).json({
+                status: 404,
+                message: "Playlist không tồn tại",
+                data: {}
             });
         }
+
+        // Lấy danh sách playlist items
+        const playlistItems = await PlaylistItems.find({ id_playlist });
+
+        res.json({
+            status: 200,
+            message: "Success",
+            playlistName: playlist.name,
+            data: playlistItems
+
+        });
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).json({
-            "status": 500,
-            "message": "Server Error",
-            "error": error.message
+            status: 500,
+            message: "Server Error",
+            error: error.message
         });
     }
 });
@@ -300,6 +314,7 @@ router.post('/add-playlist-item', async (req, res) => {
                 image_url: data.image_url,
                 preViewUrl: data.preViewUrl,
                 artist: data.artist,
+                album: data.album
             });
             await newPlaylistItem.save();
 
@@ -633,6 +648,7 @@ router.post('/add-favorite-item', async (req, res) => {
             image_url: data.image_url,
             preViewUrl: data.preViewUrl,
             artist: data.artist,
+            album: data.album
         });
         const result = await newFavoriteItem.save();
         await Favorites.findByIdAndUpdate(data.id_favorite, { $push: { favoriteItems: result._id } });
@@ -871,6 +887,116 @@ router.get('/get-coin/:user_id', async (req, res) => {
     }
 });
 
+//-----Get user order by coin
+router.get('/get-users-order-by-coin', async (req, res) => {
+    try {
+        // Lấy danh sách người dùng sắp xếp theo coin giảm dần, giới hạn 15 người dùng
+        const users = await Users.find()
+            .sort({ coin: -1 })
+            .limit(15);
+
+        if (users.length > 0) {
+            res.json({
+                status: 200,
+                message: "Danh sách người dùng sắp xếp theo coin",
+                data: users
+            });
+        } else {
+            res.status(404).json({
+                status: 404,
+                message: "Không có người dùng nào",
+                data: []
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
+    }
+});
+
+//-----Edit user profile
+router.put('/edit-user-profile/:id', Upload.single('avatar'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const data = req.body;
+        const { file } = req;
+        const updateUser = await Users.findById(id);
+        let result = null;
+        if (updateUser) {
+            // updateUser.email = data.email ?? updateUser.email,
+            // updateUser.password = data.password ?? updateUser.password,
+            updateUser.name = data.name ?? updateUser.name,
+                updateUser.birthday = data.birthday ?? updateUser.birthday,
+                updateUser.username = data.username ?? updateUser.username,
+                // updateUser.coin = data.coin ?? updateUser.coin,
+                updateUser.avatar = `${req.protocol}://${req.get("host")}/uploads/${file.filename}` ?? updateUser.avatar,
+                result = await updateUser.save();
+        }
+
+        if (result) {
+            // Nếu thêm thành công result!null trả về dữ liệu
+            res.json({
+                "status": 200,
+                "messenger": "Cập nhật thành công",
+                "data": result
+            })
+        } else {
+            // Nếu thêm ko thành công result=null, thông báo ko thành công
+            res.json({
+                "status": 400,
+                "messenger": "Lỗi, cập nhật ko thành công",
+                "data": []
+            })
+        }
+    } catch (error) {
+        console.log(error);
+    }
+})
+
+//-----Change-password
+router.put('/change-password/:id', async (req, res) => {
+    try {
+        const { id } = req.params; // Lấy user ID từ params
+        const { currentPassword, newPassword } = req.body; // Lấy dữ liệu từ body
+
+        // Tìm user theo ID
+        const user = await Users.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "Người dùng không tồn tại"
+            });
+        }
+
+        // Kiểm tra mật khẩu hiện tại
+        if (currentPassword !== user.password) {
+            return res.status(400).json({
+                status: 400,
+                message: "Mật khẩu hiện tại không đúng"
+            });
+        }
+
+        // Cập nhật mật khẩu mới
+        user.password = newPassword;
+        await user.save();
+
+        res.status(200).json({
+            status: 200,
+            message: "Đổi mật khẩu thành công"
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
+    }
+});
 
 
 module.exports = router;

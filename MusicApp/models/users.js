@@ -7,6 +7,7 @@ const Users = new Scheme({
     email: {type: String},
     name: {type: String},
     avatar: {type: String},
+    birthday: {type: Date},
     coin: {type: Number, default: 0},
     available: {type: Boolean, default: false}
 },{
