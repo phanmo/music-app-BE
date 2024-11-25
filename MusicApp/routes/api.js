@@ -542,40 +542,51 @@ router.delete('/delele-history-item-by-id/:id', async (req, res) => {
 router.post('/register', async (req, res) => {
     try {
         const data = req.body;
-        const newUser = Users({
-            username: data.username,
+
+        // Tách username từ email (phần trước @)
+        const emailParts = data.email.split('@');
+        const usernameFromEmail = emailParts[0];
+
+        const newUser = new Users({
+            username: usernameFromEmail, // Sử dụng username từ email
             password: data.password,
             email: data.email,
-            name: data.name,
-            avatar: data.avatar,
-            coin: data.coin,
-        })
-        const result = await newUser.save()
-        if (result) { //Gửi mail
+        });
+
+        const result = await newUser.save();
+
+        if (result) { // Gửi mail
             const mailOptions = {
-                from: "kieumo54@gmail.com", //email gửi đi
-                to: result.email, // email nhận
-                subject: "Đăng ký thành công", //subject
-                text: "Cảm ơn bạn đã đăng ký", // nội dung mail
+                from: "kieumo54@gmail.com", // email gửi đi
+                to: result.email,          // email nhận
+                subject: "Đăng ký thành công", // tiêu đề
+                text: "Cảm ơn bạn đã đăng ký", // nội dung email
             };
-            // Nếu thêm thành công result !null trả về dữ liệu
-            await Transporter.sendMail(mailOptions); // gửi mail
+
+            // Gửi email
+            await Transporter.sendMail(mailOptions);
+
             res.json({
-                "status": 200,
-                "message": "Thêm thành công",
-                "data": result
-            })
-        } else {// Nếu thêm không thành công result null, thông báo không thành công
-            res.json({
-                "status": 400,
-                "message": "Lỗi, thêm không thành công",
-                "data": {}
-            })
+                status: 200,
+                message: "Đăng ký thành công",
+                data: result,
+            });
+        } else { // Nếu thêm không thành công
+            res.status(400).json({
+                status: 400,
+                message: "Lỗi, đăng ký không thành công",
+                data: {},
+            });
         }
     } catch (error) {
-        console.log(error);
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message,
+        });
     }
-})
+});
 
 //-----Login
 router.post('/login', async (req, res) => {
@@ -727,13 +738,13 @@ router.post('/add-comment', async (req, res) => {
     try {
         const data = req.body;
 
-        // Tìm thông tin user
+        // Tìm thông tin user từ id_user
         const user = await Users.findById(data.id_user);
         if (!user) {
             return res.status(404).json({
                 status: 404,
                 message: "Người dùng không tồn tại",
-                data: {}
+                data: []
             });
         }
 
@@ -743,25 +754,30 @@ router.post('/add-comment', async (req, res) => {
             user.coin -= 3;
             await user.save();
 
-            // Tạo comment mới
+            // Tạo comment mới với avatar và username từ user
             const newComment = new Comments({
                 id_user: data.id_user,
                 id_track: data.id_track,
+                avatar: user.avatar, // Lấy avatar từ user
+                username: user.username, // Lấy username từ user
                 content: data.content
             });
-            const result = await newComment.save();
+            await newComment.save();
+
+            // Lấy danh sách comment theo id_track
+            const comments = await Comments.find({ id_track: data.id_track }).sort({ createdAt: -1 });
 
             return res.json({
                 status: 200,
                 message: "Thêm thành công",
-                data: result
+                data: comments
             });
         } else {
             // Coin không đủ
             return res.status(400).json({
                 status: 400,
                 message: "Coin không đủ để thêm comment",
-                data: {}
+                data: []
             });
         }
     } catch (error) {
@@ -804,24 +820,47 @@ router.get('/get-comment-by-track-id/:id_track', async (req, res) => {
 router.delete('/delete-comment/:id', async (req, res) => {
     try {
         const { id } = req.params;
+
+        // Tìm bình luận để lấy id_track trước khi xóa
+        const commentToDelete = await Comments.findById(id);
+        if (!commentToDelete) {
+            return res.status(404).json({
+                status: 404,
+                message: "Bình luận không tồn tại",
+                data: []
+            });
+        }
+
+        const idTrack = commentToDelete.id_track;
+
+        // Xóa bình luận
         const result = await Comments.findByIdAndDelete(id);
+
         if (result) {
-            res.json({
-                "status": 200,
-                "message": "Xoá thành công",
-                "data": result
-            })
+            // Lấy danh sách bình luận theo id_track
+            const comments = await Comments.find({ id_track: idTrack }).sort({ createdAt: -1 });
+
+            return res.json({
+                status: 200,
+                message: "Xoá thành công",
+                data: comments // Trả về danh sách bình luận
+            });
         } else {
-            res.json({
-                "status": 400,
-                "message": "Lỗi, xoá ko thành công",
-                "data": {}
-            })
+            return res.status(400).json({
+                status: 400,
+                message: "Lỗi, xoá không thành công",
+                data: []
+            });
         }
     } catch (error) {
-        console.log(error);
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
     }
-})
+});
 
 router.post('/add-coin', async (req, res) => {
     try {
@@ -927,12 +966,9 @@ router.put('/edit-user-profile/:id', Upload.single('avatar'), async (req, res) =
         const updateUser = await Users.findById(id);
         let result = null;
         if (updateUser) {
-            // updateUser.email = data.email ?? updateUser.email,
-            // updateUser.password = data.password ?? updateUser.password,
             updateUser.name = data.name ?? updateUser.name,
                 updateUser.birthday = data.birthday ?? updateUser.birthday,
                 updateUser.username = data.username ?? updateUser.username,
-                // updateUser.coin = data.coin ?? updateUser.coin,
                 updateUser.avatar = `${req.protocol}://${req.get("host")}/uploads/${file.filename}` ?? updateUser.avatar,
                 result = await updateUser.save();
         }

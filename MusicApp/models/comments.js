@@ -4,7 +4,10 @@ const Scheme = mongoose.Schema;
 const Comments = new Scheme({
     id_user: {type: String},
     id_track: {type: String},
-    content: {type: String, maxLength: 255}
+    avatar: {type: String},
+    usename:{type:String},
+    content: {type: String, maxLength: 255},
+    time: { type: Date, default: Date.now }
 },{
     timestamps: true
 })

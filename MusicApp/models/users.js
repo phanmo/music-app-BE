@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 const Scheme = mongoose.Schema;
 
 const Users = new Scheme({
-    username : {type: String, unique: true, maxLength: 255},
+    username : {type: String,  maxLength: 255},
     password: {type: String, maxLength: 255},
-    email: {type: String},
+    email: {type: String, unique: true},
     name: {type: String},
     avatar: {type: String},
     birthday: {type: Date},
