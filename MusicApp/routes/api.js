@@ -10,7 +10,6 @@ const PlaylistItems = require('../models/playlistItems');
 const Histories = require('../models/histories');
 const HistoryItems = require('../models/historyItems');
 const Favorites = require('../models/favorites');
-const FavoriteItems = require('../models/favoriteItems');
 const Comments = require('../models/comments');
 const Upload = require('../config/upload');
 
@@ -621,39 +620,12 @@ router.post('/login', async (req, res) => {
     }
 })
 
-//-----Add favorite
+//----- Add favorite
 router.post('/add-favorite', async (req, res) => {
     try {
         const data = req.body;
         const newFavorite = new Favorites({
             id_user: data.id_user,
-        });
-        const result = await newFavorite.save();
-        if (result) {
-            res.json({
-                "status": 200,
-                "message": "Thêm thành công",
-                "data": result
-            })
-        } else {
-            // Nếu ko thành công, hiện thông báo
-            res.json({
-                "status": 400,
-                "message": "Lỗi, thêm không thành công",
-                "data": {}
-            })
-        }
-    } catch (error) {
-        console.log(error);
-    }
-});
-
-//----- Add favorite item
-router.post('/add-favorite-item', async (req, res) => {
-    try {
-        const data = req.body;
-        const newFavoriteItem = new FavoriteItems({
-            id_favorite: data.id_favorite,
             id_track: data.id_track,
             name: data.name,
             image_url: data.image_url,
@@ -661,8 +633,7 @@ router.post('/add-favorite-item', async (req, res) => {
             artist: data.artist,
             album: data.album
         });
-        const result = await newFavoriteItem.save();
-        await Favorites.findByIdAndUpdate(data.id_favorite, { $push: { favoriteItems: result._id } });
+        const result = await newFavorite.save();
         if (result) {
             res.json({
                 "status": 200,
@@ -681,11 +652,11 @@ router.post('/add-favorite-item', async (req, res) => {
     }
 })
 
-//-----Delete favorite item by id
-router.delete('/delele-favorite-item-by-id/:id', async (req, res) => {
+//-----Delete favorite by id
+router.delete('/delele-favorite/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await FavoriteItems.findByIdAndDelete(id);
+        const result = await Favorites.findByIdAndDelete(id);
         if (result) {
             res.json({
                 "status": 200,
@@ -709,13 +680,13 @@ router.get('/get-favorite/:id_user', async (req, res) => {
     try {
         const { id_user } = req.params;
 
-        const favorite = await Favorites.findOne({ id_user }).populate('favoriteItems');
+        const favorites = await Favorites.find({ id_user });
 
-        if (favorite) {
+        if (favorites) {
             res.json({
                 "status": 200,
                 "message": "Success",
-                "data": favorite
+                "data": favorites
             });
         } else {
             res.status(400).json({
@@ -1033,6 +1004,5 @@ router.put('/change-password/:id', async (req, res) => {
         });
     }
 });
-
 
 module.exports = router;
