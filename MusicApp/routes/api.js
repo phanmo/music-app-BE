@@ -940,7 +940,7 @@ router.put('/edit-user-profile/:id', Upload.single('avatar'), async (req, res) =
             updateUser.name = data.name ?? updateUser.name,
                 updateUser.birthday = data.birthday ?? updateUser.birthday,
                 updateUser.username = data.username ?? updateUser.username,
-                updateUser.avatar = `${req.protocol}://${req.get("host")}/uploads/${file.filename}` ?? updateUser.avatar,
+                updateUser.avatar = `${req.protocol}s://${req.get("host")}/uploads/${file.filename}` ?? updateUser.avatar,
                 result = await updateUser.save();
         }
 
