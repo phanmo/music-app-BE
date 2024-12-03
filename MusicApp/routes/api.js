@@ -550,6 +550,7 @@ router.post('/register', async (req, res) => {
             username: usernameFromEmail, // Sử dụng username từ email
             password: data.password,
             email: data.email,
+            name: data.name,
         });
 
         const result = await newUser.save();
@@ -1004,5 +1005,35 @@ router.put('/change-password/:id', async (req, res) => {
         });
     }
 });
+
+//------Get user
+router.get('/get-user/:id', async(req, res)=>{
+    try {
+        const { id } = req.params;
+
+        // Tìm người dùng theo ID
+        const user = await Users.findById(id);
+        if (user) {
+            res.json({
+                "status": 200,
+                "message": "Success",
+                "data": user
+            });
+        } else {
+            res.status(400).json({
+                "status": 400,
+                "message": "Failed",
+                "data": {}
+            });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Lỗi server",
+            error: error.message
+        });
+    }
+})
 
 module.exports = router;
