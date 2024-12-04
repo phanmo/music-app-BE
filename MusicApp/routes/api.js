@@ -936,14 +936,16 @@ router.put('/edit-user-profile/:id', Upload.single('avatar'), async (req, res) =
         const data = req.body;
         const { file } = req;
         const updateUser = await Users.findById(id);
-        let result = null;
+        
         if (updateUser) {
-            updateUser.name = data.name ?? updateUser.name,
-                updateUser.birthday = data.birthday ?? updateUser.birthday,
-                updateUser.username = data.username ?? updateUser.username,
-                updateUser.avatar = `${req.protocol}s://${req.get("host")}/uploads/${file.filename}` ?? updateUser.avatar,
-                result = await updateUser.save();
+            updateUser.name = data.name ?? updateUser.name;
+            updateUser.birthday = data.birthday ?? updateUser.birthday;
+            updateUser.username = data.username ?? updateUser.username;
+            if (file) {
+                updateUser.avatar = `${req.protocol}s://${req.get("host")}/uploads/${file.filename}`;
+            }
         }
+        const result = await updateUser.save();
 
         if (result) {
             // Nếu thêm thành công result!null trả về dữ liệu
@@ -1007,7 +1009,7 @@ router.put('/change-password/:id', async (req, res) => {
 });
 
 //------Get user
-router.get('/get-user/:id', async(req, res)=>{
+router.get('/get-user/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
