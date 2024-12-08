@@ -541,6 +541,15 @@ router.delete('/delele-history-item-by-id/:id', async (req, res) => {
 router.post('/register', async (req, res) => {
     try {
         const data = req.body;
+        
+        const existingUser = await Users.findOne({ email: data.email });
+        if (existingUser) {
+            return res.status(400).json({
+                status: 400,
+                message: "Email đã được đăng ký",
+                data: {},
+            });
+        }
 
         // Tách username từ email (phần trước @)
         const emailParts = data.email.split('@');
