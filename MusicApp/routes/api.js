@@ -12,6 +12,7 @@ const HistoryItems = require('../models/historyItems');
 const Favorites = require('../models/favorites');
 const Comments = require('../models/comments');
 const Upload = require('../config/upload');
+const Downloads = require('../models/downloads');
 
 //-----Add playlist
 router.post('/add-playlist', async (req, res) => {
@@ -556,7 +557,7 @@ router.delete('/delele-history-item-by-id/:id', async (req, res) => {
 router.post('/register', async (req, res) => {
     try {
         const data = req.body;
-        
+
         const existingUser = await Users.findOne({ email: data.email });
         if (existingUser) {
             return res.status(400).json({
@@ -656,7 +657,7 @@ router.post('/add-favorite', async (req, res) => {
             image_url: data.image_url,
             preViewUrl: data.preViewUrl,
             artist: data.artist,
-            album: data.album
+            album: data.album,
         });
         const result = await newFavorite.save();
         if (result) {
@@ -960,7 +961,7 @@ router.put('/edit-user-profile/:id', Upload.single('avatar'), async (req, res) =
         const data = req.body;
         const { file } = req;
         const updateUser = await Users.findById(id);
-        
+
         if (updateUser) {
             updateUser.name = data.name ?? updateUser.name;
             updateUser.birthday = data.birthday ?? updateUser.birthday;
@@ -1058,6 +1059,117 @@ router.get('/get-user/:id', async (req, res) => {
             status: 500,
             message: "Lỗi server",
             error: error.message
+        });
+    }
+})
+
+//-----Force-update-password
+router.put('/force-update-password/:email', async (req, res) => {
+    try {
+        const { email } = req.params; // Lấy user email từ params
+        const { newPassword } = req.body; // Lấy dữ liệu từ body
+
+        // Sử dụng phương thức findByEmail
+        const user = await Users.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "User does not exist"
+            });
+        }
+
+        // Cập nhật mật khẩu mới
+        user.password = newPassword;
+        await user.save();
+
+        res.status(200).json({
+            status: 200,
+            message: "Password changed successfully"
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: 500,
+            message: "Server error",
+            error: error.message
+        });
+    }
+});
+
+router.post('/add-download', async (req, res) => {
+    try {
+
+        const data = req.body;
+
+        // Tìm thông tin user từ id_user
+        const user = await Users.findById(data.id_user);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "User does not exist",
+                data: []
+            });
+        }
+
+        if(user.coin>=10){
+            const newDownload = new Downloads({
+                id_user: data.id_user,
+                id_track: data.id_track,
+                name: data.name,
+                image_url: data.image_url,
+                preViewUrl: data.preViewUrl,
+                artist: data.artist,
+                album: data.album,
+            });
+            const result = await newDownload.save();
+            if (result) {
+                res.json({
+                    "status": 200,
+                    "message": "Successfully",
+                    "data": result
+                })
+            } else {
+                res.json({
+                    "status": 400,
+                    "message": "Failed",
+                    "data": {}
+                })
+            }
+        }else{
+            return res.status(400).json({
+                status: 400,
+                message: "Not enough coins to download",
+                data: {}
+            });
+        }
+    } catch (error) {
+        console.log(error);
+    }
+})
+
+router.get('/get-list-download/:id_user', async (req, res) => {
+    try {
+        const { id_user } = req.params;
+        const downloads = await Downloads.find({ id_user });
+        if (downloads) {
+            res.json({
+                "status": 200,
+                "message": "Success",
+                "data": downloads
+            });
+        } else {
+            res.status(400).json({
+                "status": 400,
+                "message": "Failed",
+                "data": []
+            });
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            "status": 500,
+            "message": "Server Error",
+            "error": error.message
         });
     }
 })

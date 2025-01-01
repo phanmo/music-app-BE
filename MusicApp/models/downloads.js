@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Scheme = mongoose.Schema;
 
-const Favorites = new Scheme({
+const Downloads = new Scheme({
     id_user: {type: Scheme.Types.ObjectId, ref: 'user'},
     id_track: {type: String},
     name:{type: String},
@@ -13,4 +13,4 @@ const Favorites = new Scheme({
     timestamps: true
 })
 
-module.exports = mongoose.model('favorite', Favorites)
+module.exports = mongoose.model('download', Downloads)
