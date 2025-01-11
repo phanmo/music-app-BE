@@ -1112,6 +1112,8 @@ router.post('/add-download', async (req, res) => {
         }
 
         if(user.coin>=10){
+            user.coin -= 10;
+            await user.save();
             const newDownload = new Downloads({
                 id_user: data.id_user,
                 id_track: data.id_track,
